@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\GmailToPst.Core\GmailToPst.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Google.Apis.Admin.Directory.directory_v1" Version="1.75.0.4227" />
+    <PackageReference Include="Google.Apis.Auth" Version="1.76.0" />
+    <PackageReference Include="Google.Apis.Gmail.v1" Version="1.75.0.4225" />
+    <PackageReference Include="MailKit" Version="4.17.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

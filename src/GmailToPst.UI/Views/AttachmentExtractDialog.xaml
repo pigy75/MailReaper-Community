@@ -1,0 +1,95 @@
+<Window x:Class="GmailToPst.UI.Views.AttachmentExtractDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:conv="clr-namespace:GmailToPst.UI.Converters"
+        mc:Ignorable="d"
+        Title="Estrazione Allegati &amp; Immagini dall'Archivio" 
+        Height="570" Width="640"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F4F5F7">
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVis"/>
+        <conv:BoolToVisibilityConverter x:Key="InverseBoolToVis" Invert="True"/>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="📎 Estrazione Allegati &amp; Immagini" FontSize="18" FontWeight="SemiBold" Foreground="#111827"/>
+            <TextBlock Text="Estrai automaticamente tutti i file allegati dalle email archiviate applicando filtri per tipo, anno o cartella." FontSize="12" Foreground="#6B7280" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Corpo Form con Opzioni e Filtri -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="15">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <!-- 1. Filtro per Categoria File -->
+                    <TextBlock Text="Filtra per Tipo di Allegato:" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8" Foreground="#1F2937"/>
+                    <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12">
+                        <StackPanel>
+                            <RadioButton Content="Tutti i file e formati (*.*)" IsChecked="{Binding IsCategoryAll}" FontWeight="Medium" FontSize="12" Margin="0,0,0,6"/>
+                            <RadioButton Content="🖼️ Solo Immagini e Foto (.jpg, .png, .gif, .webp, .heic, .bmp)" IsChecked="{Binding IsCategoryImages}" FontSize="12" Margin="0,0,0,6"/>
+                            <RadioButton Content="📄 Solo Documenti (.pdf, .docx, .xlsx, .pptx, .txt, .csv)" IsChecked="{Binding IsCategoryDocuments}" FontSize="12" Margin="0,0,0,6"/>
+                            <RadioButton Content="🗜️ Solo Archivi (.zip, .rar, .7z, .tar.gz)" IsChecked="{Binding IsCategoryArchives}" FontSize="12" Margin="0,0,0,6"/>
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,2">
+                                <RadioButton Content="⚙️ Estensioni personalizzate:" IsChecked="{Binding IsCategoryCustom}" FontSize="12" VerticalAlignment="Center"/>
+                                <TextBox Text="{Binding CustomExtensions, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsCategoryCustom}" Width="200" Margin="10,0,0,0" Padding="6,2" FontSize="11" VerticalContentAlignment="Center"/>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 2. Filtro per Anno -->
+                    <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,12" Visibility="{Binding HasYearFilter, Converter={StaticResource BoolToVis}}">
+                        <StackPanel>
+                            <TextBlock Text="📅 Ambito temporale da cui estrarre:" FontWeight="SemiBold" FontSize="12" Foreground="#374151" Margin="0,0,0,6"/>
+                            <RadioButton Content="{Binding YearFilterDisplay, StringFormat='Estrai allegati solo da {0}'}" IsChecked="{Binding ExportOnlySelectedYear}" FontSize="12" Margin="0,0,0,4" FontWeight="Medium"/>
+                            <RadioButton Content="Estrai allegati da tutto l'archivio (Tutti gli anni)" IsChecked="{Binding ExportOnlySelectedYear, Converter={StaticResource InverseBoolToVis}}" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 3. Dimensione Minima e Organizzazione -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <CheckBox Content="Escludi file minori di:" IsChecked="{Binding FilterMinSize}" FontSize="12" VerticalAlignment="Center"/>
+                        <TextBox Text="{Binding MinSizeKb, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding FilterMinSize}" Width="60" Margin="8,0,4,0" Padding="4,2" FontSize="11" VerticalContentAlignment="Center"/>
+                        <TextBlock Text="KB (esclude icone o pixel di firma)" FontSize="11" Foreground="#6B7280" VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <CheckBox Content="Organizza i file estratti in sottocartelle (Anno / Cartella)" IsChecked="{Binding OrganizeInSubfolders}" FontSize="12" Margin="0,0,0,12"/>
+
+                    <!-- 4. Cartella di Destinazione -->
+                    <TextBlock Text="Cartella di destinazione su disco:" FontWeight="Medium" FontSize="12" Margin="0,0,0,4" Foreground="#374151"/>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBox Text="{Binding DestinationPath, UpdateSourceTrigger=PropertyChanged}" Padding="8,6" FontSize="12" VerticalContentAlignment="Center"/>
+                        <Button Grid.Column="1" Content="Sfoglia..." Width="80" Height="32" Margin="8,0,0,0" Command="{Binding BrowseDestinationCommand}" Cursor="Hand"/>
+                    </Grid>
+                </StackPanel>
+            </ScrollViewer>
+        </Border>
+
+        <!-- Progress Bar durante estrazione -->
+        <StackPanel Grid.Row="2" Margin="0,12,0,12" Visibility="{Binding IsBusy, Converter={StaticResource BoolToVis}}">
+            <TextBlock Text="{Binding StatusMessage}" FontSize="12" Foreground="#374151" Margin="0,0,0,4"/>
+            <ProgressBar Value="{Binding ProgressPercentage}" Height="8" Maximum="100"/>
+        </StackPanel>
+
+        <!-- Pulsanti Azione -->
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Chiudi" Width="90" Height="34" Margin="0,0,10,0" Background="#F3F4F6" BorderBrush="#D1D5DB" Click="Close_Click" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}" Cursor="Hand"/>
+            <Button Content="📎 Avvia Estrazione" Width="170" Height="34" Background="#8B5CF6" Foreground="White" FontWeight="SemiBold" BorderThickness="0" Command="{Binding StartExtractionCommand}" IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBoolToVis}}" Cursor="Hand"/>
+        </StackPanel>
+    </Grid>
+</Window>

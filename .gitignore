@@ -1,0 +1,49 @@
+## =====================================================================
+## MailReaper Community Edition - .gitignore
+## =====================================================================
+
+[Bb]in/
+[Oo]bj/
+dist/
+TestResults/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*_wpftmp.csproj
+.vscode/
+
+# Database SQLite & Indici locali
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+IndexCache/
+
+# Archivi email & file pesanti
+Archives/
+[Aa]rchives/
+Allegati_Gmail/
+*.pst
+*.eml
+*.msg
+
+# File di configurazione locali
+settings.json
+profiles.json
+*credentials*.json
+*service_account*.json
+*service-account*.json
+client_secret*.json
+token.json
+tokens/
+
+*.zip
+*.nupkg
+
+# Chiavi e licenze
+*.key
+*.pem
+*.lic
+tools/
