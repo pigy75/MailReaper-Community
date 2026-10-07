@@ -109,6 +109,7 @@
             <MenuItem Header="_Aiuto">
                 <MenuItem Header="🔑 _Licenza &amp; Attivazione PRO..." Click="License_Click"/>
                 <Separator/>
+                <MenuItem Header="🔄 _Verifica Aggiornamenti (GitHub API)..." Click="CheckUpdates_Click"/>
                 <MenuItem Header="ℹ️ _Informazioni su MailReaper" Command="{Binding ShowAboutCommand}"/>
             </MenuItem>
         </Menu>

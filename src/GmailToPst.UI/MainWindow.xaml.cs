@@ -193,6 +193,44 @@ public partial class MainWindow : Window
         dlg.ShowDialog();
     }
 
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        var updateService = new GmailToPst.Core.Services.GitHubUpdateService();
+        var result = await updateService.CheckForUpdatesAsync("1.0.0");
+
+        if (!result.Success)
+        {
+            MessageBox.Show(result.Message, "Verifica Aggiornamenti GitHub", MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        if (result.IsUpToDate)
+        {
+            MessageBox.Show(result.Message, "MailReaper Aggiornato", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        else
+        {
+            var answer = MessageBox.Show(
+                $"{result.Message}\n\nNote di rilascio:\n{result.ReleaseNotes}\n\nVuoi aprire la pagina di download su GitHub?",
+                "Aggiornamento Disponibile (GitHub Releases)",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Information);
+
+            if (answer == MessageBoxResult.Yes && !string.IsNullOrWhiteSpace(result.HtmlUrl))
+            {
+                try
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = result.HtmlUrl,
+                        UseShellExecute = true
+                    });
+                }
+                catch { }
+            }
+        }
+    }
+
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         Close();
