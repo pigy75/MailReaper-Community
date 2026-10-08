@@ -650,6 +650,7 @@ public partial class MainViewModel : ObservableObject
             }
 
             await ProfileManager.DeleteProfileAsync(email, AccountType.ImapAppPassword);
+            await ProfileManager.DeleteProfileAsync(email, AccountType.Pop3);
             await ProfileManager.DeleteProfileAsync(email, AccountType.GmailOAuth);
             await ProfileManager.DeleteProfileAsync(email, AccountType.GoogleWorkspaceServiceAccount);
             await ProfileManager.DeleteProfileAsync(email, AccountType.Microsoft365SingleAccount);
@@ -745,6 +746,10 @@ public partial class MainViewModel : ObservableObject
         else if (profile.Type == AccountType.GmailOAuth)
         {
             provider = new GmailToPst.Providers.GmailApi.GmailApiProvider();
+        }
+        else if (profile.Type == AccountType.Pop3)
+        {
+            provider = new GmailToPst.Providers.Pop3.Pop3Provider();
         }
         else
         {
@@ -898,6 +903,8 @@ public partial class MainViewModel : ObservableObject
             provider = new GmailToPst.Providers.Microsoft365.Microsoft365EmailProvider();
         else if (profile.Type == AccountType.GmailOAuth)
             provider = new GmailToPst.Providers.GmailApi.GmailApiProvider();
+        else if (profile.Type == AccountType.Pop3)
+            provider = new GmailToPst.Providers.Pop3.Pop3Provider();
         else
             provider = new GmailToPst.Providers.Imap.ImapProvider();
 

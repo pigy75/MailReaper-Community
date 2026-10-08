@@ -6,7 +6,8 @@ public enum AccountType
     ImapAppPassword = 1,
     GoogleWorkspaceServiceAccount = 2,
     Microsoft365SingleAccount = 3,
-    Microsoft365TenantAdmin = 4
+    Microsoft365TenantAdmin = 4,
+    Pop3 = 5
 }
 
 public class AccountConfig
@@ -19,9 +20,11 @@ public class AccountConfig
     public string ClientId { get; set; } = string.Empty;
     public string ClientSecret { get; set; } = string.Empty;
 
-    // IMAP
+    // IMAP / POP3
     public string ImapHost { get; set; } = "imap.gmail.com";
     public int ImapPort { get; set; } = 993;
+    public string Pop3Host { get; set; } = "pop.gmail.com";
+    public int Pop3Port { get; set; } = 995;
     public bool UseSsl { get; set; } = true;
     public string AppPassword { get; set; } = string.Empty;
 

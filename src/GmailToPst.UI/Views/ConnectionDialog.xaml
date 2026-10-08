@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:conv="clr-namespace:GmailToPst.UI.Converters"
         mc:Ignorable="d"
-        Title="Configurazione Account Gmail / Microsoft 365 &amp; Backup" 
-        Height="690" Width="660"
+        Title="Configurazione Connessione (IMAP, POP3, Microsoft 365, Google) &amp; Backup" 
+        Height="715" Width="670"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#F4F5F7">
@@ -57,33 +57,47 @@
         <!-- 3. Schede Autenticazione -->
         <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedAuthTabIndex, Mode=TwoWay}" Background="White" BorderBrush="#E5E7EB" BorderThickness="1">
             
-            <!-- TAB 0: IMAP (Password per le App) -->
-            <TabItem Header="🔑 Google / Gmail (Password per le App)">
+            <!-- TAB 0: IMAP / POP3 Standard -->
+            <TabItem Header="✉️ IMAP / POP3 Standard">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
                     <StackPanel>
+                        <!-- Scelta Protocollo: IMAP vs POP3 -->
+                        <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,12">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <RadioButton Grid.Column="0" GroupName="StandardProtocol" Content="📥 IMAP (Consigliato - tutte le cartelle)" IsChecked="{Binding IsImapProtocol, Mode=TwoWay}" FontWeight="SemiBold" ToolTip="Scarica tutte le cartelle, inclusa posta inviata, archiviate e personalizzate (Porta SSL standard: 993)"/>
+                                <RadioButton Grid.Column="1" GroupName="StandardProtocol" Content="📨 POP3 (Posta in arrivo)" IsChecked="{Binding IsPop3Protocol, Mode=TwoWay}" FontWeight="SemiBold" ToolTip="Scarica i messaggi della casella di posta in arrivo (Porta SSL standard: 995)"/>
+                            </Grid>
+                        </Border>
+
                         <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
                             <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#1E40AF">
-                                <Bold>Metodo Consigliato e Immediato:</Bold> Inserisci il tuo indirizzo Gmail e una <Bold>Password per le App</Bold> (16 lettere generate su myaccount.google.com &gt; Sicurezza &gt; Verifica in 2 passaggi).
+                                <Bold>Compatibile con tutti i provider:</Bold> Aruba, Libero, TIM/Alice, Virgilio, Yahoo, server aziendali privati e Gmail.
+                                <LineBreak/>
+                                <Italic>Nota per Gmail:</Italic> usa una <Bold>Password per le App</Bold> generata su Google Account &gt; Sicurezza. Per gli altri provider usa la normale password.
                             </TextBlock>
                         </Border>
 
-                        <TextBlock Text="Indirizzo Email Google (Gmail o Workspace)" FontWeight="Medium" Margin="0,0,0,4"/>
+                        <TextBlock Text="Indirizzo Email (es. utente@dominio.it o utente@gmail.com)" FontWeight="Medium" Margin="0,0,0,4"/>
                         <TextBox Text="{Binding ImapEmail, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
 
-                        <TextBlock Text="Password per le App (16 caratteri)" FontWeight="Medium" Margin="0,0,0,4"/>
+                        <TextBlock Text="Password o Password per le App" FontWeight="Medium" Margin="0,0,0,4"/>
                         <TextBox Text="{Binding ImapAppPassword, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
 
                         <Grid Margin="0,0,0,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="100"/>
+                                <ColumnDefinition Width="110"/>
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Margin="0,0,10,0">
-                                <TextBlock Text="Server IMAP" FontWeight="Medium" Margin="0,0,0,4"/>
+                                <TextBlock Text="Server di Posta (IMAP / POP3)" FontWeight="Medium" Margin="0,0,0,4"/>
                                 <TextBox Text="{Binding ImapHost, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                             <StackPanel Grid.Column="1">
-                                <TextBlock Text="Porta" FontWeight="Medium" Margin="0,0,0,4"/>
+                                <TextBlock Text="Porta (SSL)" FontWeight="Medium" Margin="0,0,0,4"/>
                                 <TextBox Text="{Binding ImapPort, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
                         </Grid>

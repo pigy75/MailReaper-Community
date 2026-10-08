@@ -25,9 +25,87 @@ public partial class ConnectViewModel : ObservableObject
     [ObservableProperty]
     private bool _saveProfile = true;
 
-    // IMAP Properties
+    // IMAP / POP3 Properties
+    [ObservableProperty]
+    private bool _isImapProtocol = true;
+
+    partial void OnIsImapProtocolChanged(bool value)
+    {
+        if (value)
+        {
+            _isPop3Protocol = false;
+            OnPropertyChanged(nameof(IsPop3Protocol));
+            if (ImapPort == 995) ImapPort = 993;
+            if (ImapHost.StartsWith("pop.") || ImapHost.StartsWith("pop3."))
+            {
+                ImapHost = ImapHost.Replace("pop3.", "imap.").Replace("pop.", "imap.");
+            }
+        }
+    }
+
+    [ObservableProperty]
+    private bool _isPop3Protocol = false;
+
+    partial void OnIsPop3ProtocolChanged(bool value)
+    {
+        if (value)
+        {
+            _isImapProtocol = false;
+            OnPropertyChanged(nameof(IsImapProtocol));
+            if (ImapPort == 993) ImapPort = 995;
+            if (ImapHost.StartsWith("imap.") || ImapHost.StartsWith("imaps."))
+            {
+                ImapHost = ImapHost.Replace("imaps.", "pop.").Replace("imap.", "pop.");
+            }
+        }
+    }
+
     [ObservableProperty]
     private string _imapEmail = "";
+
+    partial void OnImapEmailChanged(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        var atIndex = value.IndexOf('@');
+        if (atIndex < 0 || atIndex >= value.Length - 1) return;
+        var domain = value.Substring(atIndex + 1).ToLowerInvariant().Trim();
+
+        if (domain == "gmail.com" || domain == "googlemail.com")
+        {
+            ImapHost = IsPop3Protocol ? "pop.gmail.com" : "imap.gmail.com";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+        else if (domain == "aruba.it" || domain.EndsWith(".aruba.it"))
+        {
+            ImapHost = IsPop3Protocol ? "pop3.aruba.it" : "imaps.aruba.it";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+        else if (domain == "libero.it")
+        {
+            ImapHost = IsPop3Protocol ? "popmail.libero.it" : "imapmail.libero.it";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+        else if (domain == "virgilio.it")
+        {
+            ImapHost = "in.virgilio.it";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+        else if (domain == "tim.it" || domain == "tin.it" || domain == "alice.it")
+        {
+            ImapHost = IsPop3Protocol ? "box.tin.it" : "imap.tim.it";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+        else if (domain == "outlook.com" || domain == "hotmail.com" || domain == "live.com")
+        {
+            ImapHost = "outlook.office365.com";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+        else if (domain == "yahoo.com" || domain == "yahoo.it")
+        {
+            ImapHost = IsPop3Protocol ? "pop.mail.yahoo.com" : "imap.mail.yahoo.com";
+            ImapPort = IsPop3Protocol ? 995 : 993;
+        }
+    }
 
     [ObservableProperty]
     private string _imapAppPassword = "";
@@ -156,6 +234,18 @@ public partial class ConnectViewModel : ObservableObject
             M365UserEmail = m365Profile.M365UserEmail ?? m365Profile.EmailAddress;
             M365IsAdminMode = m365Profile.Type == AccountType.Microsoft365TenantAdmin;
             M365IsSingleAccountMode = !M365IsAdminMode;
+
+            if (m365Profile.DiscoveredUsers != null && m365Profile.DiscoveredUsers.Any())
+            {
+                M365Users.Clear();
+                foreach (var u in m365Profile.DiscoveredUsers)
+                {
+                    M365Users.Add(u);
+                }
+                SelectedM365User = M365Users.FirstOrDefault();
+                M365HasDiscoveredUsers = true;
+                M365StatusText = $"✅ {M365Users.Count} caselle salvate per il tenant Microsoft 365";
+            }
         }
 
         if (SavedProfiles.Any())
@@ -226,14 +316,56 @@ public partial class ConnectViewModel : ObservableObject
             return;
         }
 
-        System.Windows.MessageBox.Show("La scoperta automatica dell'intero dominio Google Workspace è una funzionalità avanzata di MailReaper PRO.\n\nNella versione Community puoi archiviare qualsiasi account tramite Gmail OAuth2 o IMAP Standard.\n\nPer maggiori dettagli visita https://mailreaper.peer2peer.cloud", "MailReaper PRO Feature", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-        IsDiscoveringUsers = false;
-        DiscoverButtonText = "🔍 Rileva Utenti Dominio";
-        WorkspaceStatusText = "Funzionalità riservata a MailReaper PRO (https://mailreaper.peer2peer.cloud)";
-        await Task.CompletedTask;
+        IsDiscoveringUsers = true;
+        DiscoverButtonText = "⏳ Recupero utenti in corso...";
+        WorkspaceStatusText = "Connessione alla Directory API di Google Workspace in corso...";
+        WorkspaceUsers.Clear();
+        HasDiscoveredUsers = false;
+
+        try
+        {
+            var users = await GmailToPst.Providers.Workspace.GoogleWorkspaceAdminService.GetDomainUsersAsync(WorkspaceKeyFilePath, WorkspaceAdminEmail.Trim());
+            foreach (var u in users)
+            {
+                WorkspaceUsers.Add(u);
+            }
+
+            if (WorkspaceUsers.Any())
+            {
+                SelectedWorkspaceUser = WorkspaceUsers.First();
+                HasDiscoveredUsers = true;
+                WorkspaceStatusText = $"✅ Trovati con successo {WorkspaceUsers.Count} account nel dominio!";
+
+                // Automatically save Admin profile with discovered users list so it stays persistent!
+                var adminConfig = new AccountConfig
+                {
+                    Type = AccountType.GoogleWorkspaceServiceAccount,
+                    EmailAddress = WorkspaceAdminEmail.Trim(),
+                    WorkspaceAdminEmail = WorkspaceAdminEmail.Trim(),
+                    ServiceAccountKeyFilePath = WorkspaceKeyFilePath,
+                    DiscoveredUsers = WorkspaceUsers.ToList()
+                };
+                await ProfileManager.SaveProfileAsync(adminConfig);
+                await LoadProfilesAsync();
+            }
+            else
+            {
+                WorkspaceStatusText = "⚠️ Nessun utente trovato nel dominio specificato.";
+            }
+        }
+        catch (Exception ex)
+        {
+            WorkspaceStatusText = $"❌ Errore: {ex.Message}";
+            System.Windows.MessageBox.Show($"Impossibile recuperare gli utenti del dominio:\n{ex.Message}\n\nAssicurati di aver abilitato 'Admin SDK API' su Google Cloud e autorizzato il Client ID su admin.google.com nella Delega di Dominio.", "Errore Directory Workspace", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+        finally
+        {
+            IsDiscoveringUsers = false;
+            DiscoverButtonText = "🔄 Aggiorna Elenco Utenti del Dominio";
+        }
     }
 
-    // Microsoft 365 Properties
+    // Microsoft 365 Properties (Single & Tenant Admin)
     [ObservableProperty]
     private string _m365TenantId = "";
 
@@ -296,9 +428,72 @@ public partial class ConnectViewModel : ObservableObject
     [RelayCommand]
     private async Task DiscoverM365UsersAsync()
     {
-        System.Windows.MessageBox.Show("La scoperta e archiviazione automatica di tutte le caselle dell'intero tenant Microsoft 365 è una funzionalità avanzata di MailReaper PRO.\n\nNella versione Community puoi archiviare qualsiasi singolo account Microsoft 365 inserendo l'indirizzo email dell'utente.\n\nPer maggiori dettagli visita https://mailreaper.peer2peer.cloud", "MailReaper PRO Feature", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
-        M365StatusText = "Funzionalità riservata a MailReaper PRO (https://mailreaper.peer2peer.cloud)";
-        await Task.CompletedTask;
+        if (string.IsNullOrWhiteSpace(M365TenantId))
+        {
+            System.Windows.MessageBox.Show("Inserisci il Tenant ID (Directory ID) di Microsoft Entra ID / Microsoft 365.", "Tenant ID Mancante", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(M365ClientId))
+        {
+            System.Windows.MessageBox.Show("Inserisci il Client ID (Application ID) dell'applicazione registrata su Azure / Entra ID.", "Client ID Mancante", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(M365ClientSecret))
+        {
+            System.Windows.MessageBox.Show("Inserisci il Client Secret generato per l'applicazione su Azure / Entra ID.", "Client Secret Mancante", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+            return;
+        }
+
+        M365IsDiscoveringUsers = true;
+        M365DiscoverButtonText = "⏳ Connessione a Microsoft Graph...";
+        M365StatusText = "Interrogazione utenti del tenant Microsoft 365 in corso...";
+        M365Users.Clear();
+        M365HasDiscoveredUsers = false;
+
+        try
+        {
+            var users = await GmailToPst.Providers.Microsoft365.Microsoft365AdminService.GetTenantUsersAsync(M365TenantId.Trim(), M365ClientId.Trim(), M365ClientSecret.Trim());
+            foreach (var u in users)
+            {
+                M365Users.Add(u);
+            }
+
+            if (M365Users.Any())
+            {
+                SelectedM365User = M365Users.First();
+                M365HasDiscoveredUsers = true;
+                M365StatusText = $"✅ Trovate con successo {M365Users.Count} caselle nel tenant Microsoft 365!";
+
+                var adminConfig = new AccountConfig
+                {
+                    Type = AccountType.Microsoft365TenantAdmin,
+                    EmailAddress = SelectedM365User.Email,
+                    M365TenantId = M365TenantId.Trim(),
+                    M365ClientId = M365ClientId.Trim(),
+                    M365ClientSecret = M365ClientSecret.Trim(),
+                    M365IsAdminMode = true,
+                    DiscoveredUsers = M365Users.ToList()
+                };
+                await ProfileManager.SaveProfileAsync(adminConfig);
+                await LoadProfilesAsync();
+            }
+            else
+            {
+                M365StatusText = "⚠️ Nessuna casella postale trovata nel tenant specificato.";
+            }
+        }
+        catch (Exception ex)
+        {
+            M365StatusText = $"❌ Errore: {ex.Message}";
+            System.Windows.MessageBox.Show($"Impossibile connettersi al tenant Microsoft 365:\n\n{ex.Message}\n\nVerifica che l'applicazione su Azure Portal abbia i permessi 'Mail.Read' e 'User.Read.All' (Application) e che sia stato concesso il consenso amministratore.", "Errore Connessione Microsoft 365", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Error);
+        }
+        finally
+        {
+            M365IsDiscoveringUsers = false;
+            M365DiscoverButtonText = "🔄 Aggiorna Elenco Caselle Dominio 365";
+        }
     }
 
     partial void OnSelectedProfileChanged(AccountConfig? value)
@@ -308,10 +503,22 @@ public partial class ConnectViewModel : ObservableObject
         if (value.Type == AccountType.ImapAppPassword)
         {
             SelectedAuthTabIndex = 0;
+            IsImapProtocol = true;
+            IsPop3Protocol = false;
             ImapEmail = value.EmailAddress;
             ImapAppPassword = value.AppPassword;
             ImapHost = string.IsNullOrEmpty(value.ImapHost) ? "imap.gmail.com" : value.ImapHost;
             ImapPort = value.ImapPort > 0 ? value.ImapPort : 993;
+        }
+        else if (value.Type == AccountType.Pop3)
+        {
+            SelectedAuthTabIndex = 0;
+            IsPop3Protocol = true;
+            IsImapProtocol = false;
+            ImapEmail = value.EmailAddress;
+            ImapAppPassword = value.AppPassword;
+            ImapHost = !string.IsNullOrEmpty(value.Pop3Host) ? value.Pop3Host : (string.IsNullOrEmpty(value.ImapHost) ? "pop.gmail.com" : value.ImapHost);
+            ImapPort = value.Pop3Port > 0 ? value.Pop3Port : 995;
         }
         else if (value.Type == AccountType.GmailOAuth)
         {
@@ -347,6 +554,18 @@ public partial class ConnectViewModel : ObservableObject
             M365UserEmail = value.M365UserEmail ?? value.EmailAddress;
             M365IsAdminMode = value.Type == AccountType.Microsoft365TenantAdmin;
             M365IsSingleAccountMode = !M365IsAdminMode;
+
+            if (value.DiscoveredUsers != null && value.DiscoveredUsers.Any())
+            {
+                M365Users.Clear();
+                foreach (var u in value.DiscoveredUsers)
+                {
+                    M365Users.Add(u);
+                }
+                SelectedM365User = M365Users.FirstOrDefault();
+                M365HasDiscoveredUsers = true;
+                M365StatusText = $"✅ {M365Users.Count} caselle salvate nel tenant";
+            }
         }
     }
 
@@ -362,23 +581,40 @@ public partial class ConnectViewModel : ObservableObject
         AccountConfig config;
         IEmailProvider provider;
 
-        if (SelectedAuthTabIndex == 0) // IMAP
+        if (SelectedAuthTabIndex == 0) // IMAP / POP3
         {
             if (string.IsNullOrWhiteSpace(ImapEmail) || string.IsNullOrWhiteSpace(ImapAppPassword))
             {
-                System.Windows.MessageBox.Show("Inserisci l'indirizzo email e la Password per le App per analizzare la casella.", "Campi mancanti", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show("Inserisci l'indirizzo email e la password (o Password per le App) per analizzare la casella.", "Campi mancanti", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return;
             }
 
-            config = new AccountConfig
+            if (IsPop3Protocol)
             {
-                Type = AccountType.ImapAppPassword,
-                EmailAddress = ImapEmail.Trim(),
-                AppPassword = ImapAppPassword.Trim(),
-                ImapHost = ImapHost.Trim(),
-                ImapPort = ImapPort
-            };
-            provider = new ImapProvider();
+                config = new AccountConfig
+                {
+                    Type = AccountType.Pop3,
+                    EmailAddress = ImapEmail.Trim(),
+                    AppPassword = ImapAppPassword.Trim(),
+                    Pop3Host = ImapHost.Trim(),
+                    Pop3Port = ImapPort,
+                    ImapHost = ImapHost.Trim(),
+                    ImapPort = ImapPort
+                };
+                provider = new GmailToPst.Providers.Pop3.Pop3Provider();
+            }
+            else
+            {
+                config = new AccountConfig
+                {
+                    Type = AccountType.ImapAppPassword,
+                    EmailAddress = ImapEmail.Trim(),
+                    AppPassword = ImapAppPassword.Trim(),
+                    ImapHost = ImapHost.Trim(),
+                    ImapPort = ImapPort
+                };
+                provider = new ImapProvider();
+            }
         }
         else if (SelectedAuthTabIndex == 1) // OAuth
         {
@@ -495,23 +731,40 @@ public partial class ConnectViewModel : ObservableObject
         IEmailProvider provider;
         string email;
 
-        if (SelectedAuthTabIndex == 0) // Tab 0: IMAP (Password per le App)
+        if (SelectedAuthTabIndex == 0) // Tab 0: IMAP / POP3 Standard
         {
             if (string.IsNullOrWhiteSpace(ImapEmail) || string.IsNullOrWhiteSpace(ImapAppPassword))
             {
-                System.Windows.MessageBox.Show("Inserisci l'indirizzo email e la Password per le App di Google (16 caratteri).", "Campi mancanti", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                System.Windows.MessageBox.Show("Inserisci l'indirizzo email e la password (o Password per le App).", "Campi mancanti", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
                 return;
             }
 
-            config = new AccountConfig
+            if (IsPop3Protocol)
             {
-                Type = AccountType.ImapAppPassword,
-                EmailAddress = ImapEmail.Trim(),
-                AppPassword = ImapAppPassword.Trim(),
-                ImapHost = ImapHost.Trim(),
-                ImapPort = ImapPort
-            };
-            provider = new ImapProvider();
+                config = new AccountConfig
+                {
+                    Type = AccountType.Pop3,
+                    EmailAddress = ImapEmail.Trim(),
+                    AppPassword = ImapAppPassword.Trim(),
+                    Pop3Host = ImapHost.Trim(),
+                    Pop3Port = ImapPort,
+                    ImapHost = ImapHost.Trim(),
+                    ImapPort = ImapPort
+                };
+                provider = new GmailToPst.Providers.Pop3.Pop3Provider();
+            }
+            else
+            {
+                config = new AccountConfig
+                {
+                    Type = AccountType.ImapAppPassword,
+                    EmailAddress = ImapEmail.Trim(),
+                    AppPassword = ImapAppPassword.Trim(),
+                    ImapHost = ImapHost.Trim(),
+                    ImapPort = ImapPort
+                };
+                provider = new ImapProvider();
+            }
             email = ImapEmail.Trim();
         }
         else if (SelectedAuthTabIndex == 1) // Tab 1: OAuth 2.0

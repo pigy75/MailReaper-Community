@@ -798,33 +798,158 @@ public class SqliteArchiveStorage : ILocalArchiveStorage
         return msg;
     }
 
+    private string ResolveLocalFilePath(string? storedPath, string targetBaseDir, string? fallbackSubDir = null, string? fallbackFileName = null)
+    {
+        if (!string.IsNullOrEmpty(storedPath) && File.Exists(storedPath))
+        {
+            return storedPath;
+        }
+
+        if (!string.IsNullOrEmpty(storedPath))
+        {
+            var fileName = Path.GetFileName(storedPath);
+            var parentDir = Path.GetFileName(Path.GetDirectoryName(storedPath));
+
+            if (!string.IsNullOrEmpty(parentDir))
+            {
+                var candidate = Path.Combine(targetBaseDir, parentDir, fileName);
+                if (File.Exists(candidate)) return candidate;
+            }
+
+            var candidateDirect = Path.Combine(targetBaseDir, fileName);
+            if (File.Exists(candidateDirect)) return candidateDirect;
+        }
+
+        if (!string.IsNullOrEmpty(fallbackSubDir) && !string.IsNullOrEmpty(fallbackFileName))
+        {
+            var safeSubDir = string.Concat(fallbackSubDir.Split(Path.GetInvalidFileNameChars()));
+            var safeFileName = SanitizeAndTruncateFileName(fallbackFileName, 60, "allegato.bin");
+            var candidateFallback = Path.Combine(targetBaseDir, safeSubDir, safeFileName);
+            if (File.Exists(candidateFallback)) return candidateFallback;
+        }
+
+        return storedPath ?? string.Empty;
+    }
+
     public async Task<byte[]> GetRawEmlBytesAsync(string messageId, CancellationToken cancellationToken = default)
     {
         var msg = await GetMessageDetailsAsync(messageId, cancellationToken);
-        if (msg == null || string.IsNullOrEmpty(msg.RawEmlPath) || !File.Exists(msg.RawEmlPath))
+        if (msg == null)
+        {
+            throw new FileNotFoundException($"Messaggio {messageId} non trovato nel database");
+        }
+
+        var resolvedPath = ResolveLocalFilePath(msg.RawEmlPath, _emlDirectory, msg.FolderName, $"{messageId}.eml");
+        if (string.IsNullOrEmpty(resolvedPath) || !File.Exists(resolvedPath))
+        {
+            if (Directory.Exists(_emlDirectory))
+            {
+                var found = Directory.EnumerateFiles(_emlDirectory, $"{messageId}.eml", SearchOption.AllDirectories).FirstOrDefault();
+                if (found != null && File.Exists(found))
+                {
+                    resolvedPath = found;
+                }
+            }
+        }
+
+        if (string.IsNullOrEmpty(resolvedPath) || !File.Exists(resolvedPath))
         {
             throw new FileNotFoundException($"File EML non trovato per il messaggio {messageId}");
         }
 
-        return await File.ReadAllBytesAsync(msg.RawEmlPath, cancellationToken);
+        return await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
     }
 
     public async Task<byte[]> GetAttachmentBytesAsync(string attachmentId, CancellationToken cancellationToken = default)
     {
         EnsureOpen();
-        var sql = "SELECT LocalBlobPath FROM Attachments WHERE Id = @Id;";
+        var sql = "SELECT MessageId, FileName, LocalBlobPath FROM Attachments WHERE Id = @Id;";
         using var cmd = new SqliteCommand(sql, _connection);
         cmd.Parameters.AddWithValue("@Id", attachmentId);
 
-        var pathObj = await cmd.ExecuteScalarAsync(cancellationToken);
-        var path = pathObj?.ToString();
+        string? messageId = null;
+        string? fileName = null;
+        string? path = null;
 
-        if (string.IsNullOrEmpty(path) || !File.Exists(path))
+        using (var reader = await cmd.ExecuteReaderAsync(cancellationToken))
         {
-            throw new FileNotFoundException($"File allegato non trovato per ID {attachmentId}");
+            if (await reader.ReadAsync(cancellationToken))
+            {
+                messageId = reader.IsDBNull(0) ? null : reader.GetString(0);
+                fileName = reader.IsDBNull(1) ? null : reader.GetString(1);
+                path = reader.IsDBNull(2) ? null : reader.GetString(2);
+            }
         }
 
-        return await File.ReadAllBytesAsync(path, cancellationToken);
+        // 1. Prova percorso memorizzato o risolto nella cartella attachments
+        var resolvedPath = ResolveLocalFilePath(path, _attachmentsDirectory, messageId, fileName);
+        if (!string.IsNullOrEmpty(resolvedPath) && File.Exists(resolvedPath))
+        {
+            return await File.ReadAllBytesAsync(resolvedPath, cancellationToken);
+        }
+
+        // 2. Se non presente su disco, estrai al volo dal file .EML del messaggio
+        if (!string.IsNullOrEmpty(messageId))
+        {
+            try
+            {
+                var emlBytes = await GetRawEmlBytesAsync(messageId, cancellationToken);
+                using var emlStream = new MemoryStream(emlBytes);
+                var mime = await MimeKit.MimeMessage.LoadAsync(emlStream, cancellationToken);
+
+                foreach (var entity in mime.BodyParts)
+                {
+                    if (entity is MimeKit.MimePart part)
+                    {
+                        var isTextBody = (part.ContentType.MimeType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) || 
+                                          part.ContentType.MimeType.Equals("text/html", StringComparison.OrdinalIgnoreCase)) &&
+                                         string.IsNullOrWhiteSpace(part.FileName);
+
+                        if (isTextBody) continue;
+
+                        var partFileName = part.FileName ?? "";
+                        if (string.Equals(partFileName, fileName, StringComparison.OrdinalIgnoreCase) || string.IsNullOrEmpty(fileName))
+                        {
+                            using var ms = new MemoryStream();
+                            part.Content?.DecodeTo(ms);
+                            var extractedBytes = ms.ToArray();
+
+                            if (extractedBytes.Length > 0)
+                            {
+                                try
+                                {
+                                    var msgAttDir = Path.Combine(_attachmentsDirectory, messageId);
+                                    Directory.CreateDirectory(msgAttDir);
+                                    var safeName = SanitizeAndTruncateFileName(fileName ?? partFileName, 60, "allegato.bin");
+                                    var savedPath = Path.Combine(msgAttDir, safeName);
+                                    await File.WriteAllBytesAsync(savedPath, extractedBytes, cancellationToken);
+                                    await UpdateAttachmentBlobPathAsync(attachmentId, savedPath, cancellationToken);
+                                }
+                                catch { }
+
+                                return extractedBytes;
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        throw new FileNotFoundException($"File allegato non trovato per ID {attachmentId} (File: {fileName ?? "sconosciuto"})");
+    }
+
+    private async Task UpdateAttachmentBlobPathAsync(string attachmentId, string newPath, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var updateSql = "UPDATE Attachments SET LocalBlobPath = @Path WHERE Id = @Id;";
+            using var uCmd = new SqliteCommand(updateSql, _connection);
+            uCmd.Parameters.AddWithValue("@Path", newPath);
+            uCmd.Parameters.AddWithValue("@Id", attachmentId);
+            await uCmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
     }
 
     public async Task<int> GetTotalMessageCountAsync(int? yearFilter = null, CancellationToken cancellationToken = default)
@@ -952,62 +1077,84 @@ public class SqliteArchiveStorage : ILocalArchiveStorage
                     if (!filterOptions.MatchesFilter(att.FileName, att.SizeBytes))
                         continue;
 
-                    byte[] bytes;
-                    if (File.Exists(att.LocalBlobPath))
+                    try
                     {
-                        bytes = await File.ReadAllBytesAsync(att.LocalBlobPath, cancellationToken);
-                    }
-                    else
-                    {
-                        bytes = await GetAttachmentBytesAsync(att.Id, cancellationToken);
-                    }
+                        var resolvedBlobPath = ResolveLocalFilePath(att.LocalBlobPath, _attachmentsDirectory, msg.Id, att.FileName);
+                        byte[] bytes;
+                        if (File.Exists(resolvedBlobPath))
+                        {
+                            bytes = await File.ReadAllBytesAsync(resolvedBlobPath, cancellationToken);
+                        }
+                        else
+                        {
+                            bytes = await GetAttachmentBytesAsync(att.Id, cancellationToken);
+                        }
 
-                    await SaveExtractedFileAsync(destDir, att.FileName, msg.Subject, msg.DateString, bytes, cancellationToken);
-                    extractedCount++;
-                    extractedBytes += bytes.Length;
+                        await SaveExtractedFileAsync(destDir, att.FileName, msg.Subject, msg.DateString, bytes, cancellationToken);
+                        extractedCount++;
+                        extractedBytes += bytes.Length;
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ExtractAttachments] Allegato {att.FileName} ({att.Id}) non estratto: {ex.Message}");
+                    }
                 }
             }
-            else if (!string.IsNullOrEmpty(msg.RawEmlPath) && File.Exists(msg.RawEmlPath))
+            else
             {
-                // Fallback: estrai direttamente dal file .EML
-                try
+                var resolvedEml = ResolveLocalFilePath(msg.RawEmlPath, _emlDirectory, msg.FolderName, $"{msg.Id}.eml");
+                if (!string.IsNullOrEmpty(resolvedEml) && File.Exists(resolvedEml))
                 {
-                    using var emlStream = File.OpenRead(msg.RawEmlPath);
-                    var mime = await MimeKit.MimeMessage.LoadAsync(emlStream, cancellationToken);
-
-                    foreach (var entity in mime.BodyParts)
+                    // Fallback: estrai direttamente dal file .EML
+                    try
                     {
-                        if (entity is MimeKit.MimePart part)
+                        using var emlStream = File.OpenRead(resolvedEml);
+                        var mime = await MimeKit.MimeMessage.LoadAsync(emlStream, cancellationToken);
+
+                        foreach (var entity in mime.BodyParts)
                         {
-                            var isTextBody = (part.ContentType.MimeType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) || 
-                                              part.ContentType.MimeType.Equals("text/html", StringComparison.OrdinalIgnoreCase)) &&
-                                             string.IsNullOrWhiteSpace(part.FileName);
-
-                            if (isTextBody) continue;
-
-                            var fileName = !string.IsNullOrWhiteSpace(part.FileName)
-                                ? part.FileName
-                                : (!string.IsNullOrWhiteSpace(part.ContentId)
-                                    ? $"{part.ContentId.Trim('<', '>')}.{part.ContentType.MediaSubtype}"
-                                    : $"allegato_{extractedCount + 1}.{part.ContentType.MediaSubtype}");
-
-                            byte[] bytes;
-                            using (var ms = new MemoryStream())
+                            if (entity is MimeKit.MimePart part)
                             {
-                                part.Content?.DecodeTo(ms);
-                                bytes = ms.ToArray();
-                            }
+                                var isTextBody = (part.ContentType.MimeType.Equals("text/plain", StringComparison.OrdinalIgnoreCase) || 
+                                                  part.ContentType.MimeType.Equals("text/html", StringComparison.OrdinalIgnoreCase)) &&
+                                                 string.IsNullOrWhiteSpace(part.FileName);
 
-                            if (bytes.Length > 0 && filterOptions.MatchesFilter(fileName, bytes.Length))
-                            {
-                                await SaveExtractedFileAsync(destDir, fileName, msg.Subject, msg.DateString, bytes, cancellationToken);
-                                extractedCount++;
-                                extractedBytes += bytes.Length;
+                                if (isTextBody) continue;
+
+                                var fileName = !string.IsNullOrWhiteSpace(part.FileName)
+                                    ? part.FileName
+                                    : (!string.IsNullOrWhiteSpace(part.ContentId)
+                                        ? $"{part.ContentId.Trim('<', '>')}.{part.ContentType.MediaSubtype}"
+                                        : $"allegato_{extractedCount + 1}.{part.ContentType.MediaSubtype}");
+
+                                byte[] bytes;
+                                using (var ms = new MemoryStream())
+                                {
+                                    part.Content?.DecodeTo(ms);
+                                    bytes = ms.ToArray();
+                                }
+
+                                if (bytes.Length > 0 && filterOptions.MatchesFilter(fileName, bytes.Length))
+                                {
+                                    try
+                                    {
+                                        await SaveExtractedFileAsync(destDir, fileName, msg.Subject, msg.DateString, bytes, cancellationToken);
+                                        extractedCount++;
+                                        extractedBytes += bytes.Length;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        System.Diagnostics.Debug.WriteLine($"[ExtractAttachments] Salvataggio allegato da EML fallito ({fileName}): {ex.Message}");
+                                    }
+                                }
                             }
                         }
                     }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[ExtractAttachments] Parsing EML fallito ({resolvedEml}): {ex.Message}");
+                    }
                 }
-                catch { }
             }
 
             if (processedMsgs % 10 == 0 || processedMsgs == candidateMessages.Count)
