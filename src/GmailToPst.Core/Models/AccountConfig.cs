@@ -4,7 +4,9 @@ public enum AccountType
 {
     GmailOAuth = 0,
     ImapAppPassword = 1,
-    GoogleWorkspaceServiceAccount = 2
+    GoogleWorkspaceServiceAccount = 2,
+    Microsoft365SingleAccount = 3,
+    Microsoft365TenantAdmin = 4
 }
 
 public class AccountConfig
@@ -27,4 +29,11 @@ public class AccountConfig
     public string ServiceAccountKeyFilePath { get; set; } = string.Empty;
     public string WorkspaceAdminEmail { get; set; } = string.Empty;
     public List<WorkspaceUser> DiscoveredUsers { get; set; } = new();
+
+    // Microsoft 365 (Single Account & Tenant Admin)
+    public string M365TenantId { get; set; } = string.Empty;
+    public string M365ClientId { get; set; } = string.Empty;
+    public string M365ClientSecret { get; set; } = string.Empty;
+    public string M365UserEmail { get; set; } = string.Empty;
+    public bool M365IsAdminMode { get; set; } = true;
 }

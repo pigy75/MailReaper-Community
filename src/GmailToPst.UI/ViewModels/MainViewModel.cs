@@ -652,6 +652,8 @@ public partial class MainViewModel : ObservableObject
             await ProfileManager.DeleteProfileAsync(email, AccountType.ImapAppPassword);
             await ProfileManager.DeleteProfileAsync(email, AccountType.GmailOAuth);
             await ProfileManager.DeleteProfileAsync(email, AccountType.GoogleWorkspaceServiceAccount);
+            await ProfileManager.DeleteProfileAsync(email, AccountType.Microsoft365SingleAccount);
+            await ProfileManager.DeleteProfileAsync(email, AccountType.Microsoft365TenantAdmin);
 
             Accounts.Remove(targetAccount);
 
@@ -704,6 +706,27 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
+        // 3. If not found, check if it belongs to a saved Microsoft 365 tenant profile
+        if (profile == null)
+        {
+            var m365AdminProfile = profiles.FirstOrDefault(p => p.Type == AccountType.Microsoft365TenantAdmin &&
+                p.DiscoveredUsers.Any(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)));
+
+            if (m365AdminProfile != null)
+            {
+                profile = new AccountConfig
+                {
+                    Type = AccountType.Microsoft365TenantAdmin,
+                    EmailAddress = email,
+                    M365TenantId = m365AdminProfile.M365TenantId,
+                    M365ClientId = m365AdminProfile.M365ClientId,
+                    M365ClientSecret = m365AdminProfile.M365ClientSecret,
+                    M365UserEmail = email,
+                    M365IsAdminMode = true
+                };
+            }
+        }
+
         if (profile == null)
         {
             MessageBox.Show($"Nessuna credenziale trovata per l'account '{email}'. Apri 'Nuovo Backup...' per configurare la connessione.", "Credenziali non trovate", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -714,6 +737,10 @@ public partial class MainViewModel : ObservableObject
         if (profile.Type == AccountType.GoogleWorkspaceServiceAccount)
         {
             provider = new GmailToPst.Providers.Workspace.GoogleWorkspaceEmailProvider();
+        }
+        else if (profile.Type == AccountType.Microsoft365TenantAdmin || profile.Type == AccountType.Microsoft365SingleAccount)
+        {
+            provider = new GmailToPst.Providers.Microsoft365.Microsoft365EmailProvider();
         }
         else if (profile.Type == AccountType.GmailOAuth)
         {
@@ -837,6 +864,27 @@ public partial class MainViewModel : ObservableObject
             }
         }
 
+        // 3. If not found, check if it belongs to a saved Microsoft 365 tenant profile
+        if (profile == null)
+        {
+            var m365AdminProfile = profiles.FirstOrDefault(p => p.Type == AccountType.Microsoft365TenantAdmin &&
+                p.DiscoveredUsers.Any(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase)));
+
+            if (m365AdminProfile != null)
+            {
+                profile = new AccountConfig
+                {
+                    Type = AccountType.Microsoft365TenantAdmin,
+                    EmailAddress = email,
+                    M365TenantId = m365AdminProfile.M365TenantId,
+                    M365ClientId = m365AdminProfile.M365ClientId,
+                    M365ClientSecret = m365AdminProfile.M365ClientSecret,
+                    M365UserEmail = email,
+                    M365IsAdminMode = true
+                };
+            }
+        }
+
         if (profile == null)
         {
             MessageBox.Show($"Nessuna credenziale trovata per l'account '{email}'. Apri 'Nuovo Backup...' per configurare la connessione.", "Attenzione", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -846,6 +894,8 @@ public partial class MainViewModel : ObservableObject
         IEmailProvider provider;
         if (profile.Type == AccountType.GoogleWorkspaceServiceAccount)
             provider = new GmailToPst.Providers.Workspace.GoogleWorkspaceEmailProvider();
+        else if (profile.Type == AccountType.Microsoft365TenantAdmin || profile.Type == AccountType.Microsoft365SingleAccount)
+            provider = new GmailToPst.Providers.Microsoft365.Microsoft365EmailProvider();
         else if (profile.Type == AccountType.GmailOAuth)
             provider = new GmailToPst.Providers.GmailApi.GmailApiProvider();
         else

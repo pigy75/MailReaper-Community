@@ -5,8 +5,8 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:conv="clr-namespace:GmailToPst.UI.Converters"
         mc:Ignorable="d"
-        Title="Configurazione Account Gmail &amp; Backup" 
-        Height="650" Width="640"
+        Title="Configurazione Account Gmail / Microsoft 365 &amp; Backup" 
+        Height="690" Width="660"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize"
         Background="#F4F5F7">
@@ -153,6 +153,60 @@
                         </StackPanel>
 
                         <CheckBox Content="Salva credenziali Service Account nei profili protetti" IsChecked="{Binding SaveProfile}" Margin="0,4,0,0" FontWeight="Medium"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- TAB 3: Microsoft 365 (Singolo & Dominio Admin) -->
+            <TabItem Header="🟦 Microsoft 365">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16">
+                    <StackPanel>
+                        <Border Background="#F0F9FF" BorderBrush="#BAE6FD" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
+                            <TextBlock TextWrapping="Wrap" FontSize="12" Foreground="#0369A1">
+                                <Bold>Microsoft 365 / Entra ID (Graph API):</Bold> Backup ad alta efficienza per Microsoft 365. Supporta sia il download di una singola casella sia la gestione centralizzata di tutte le caselle del dominio aziendale (Microsoft 365 Tenant Admin).
+                            </TextBlock>
+                        </Border>
+
+                        <!-- Scelta modalità: Tenant Admin vs Singolo Account -->
+                        <Grid Margin="0,0,0,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton Grid.Column="0" GroupName="M365Mode" Content="🏢 Dominio / Tenant (Admin)" IsChecked="{Binding M365IsAdminMode, Mode=TwoWay}" FontWeight="SemiBold"/>
+                            <RadioButton Grid.Column="1" GroupName="M365Mode" Content="👤 Account Singolo" IsChecked="{Binding M365IsSingleAccountMode, Mode=TwoWay}" FontWeight="SemiBold"/>
+                        </Grid>
+
+                        <TextBlock Text="Tenant ID / Directory ID (Azure Entra ID)" FontWeight="Medium" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding M365TenantId, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Client ID / Application ID (Registrazione App)" FontWeight="Medium" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding M365ClientId, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+
+                        <TextBlock Text="Client Secret (Valore del Segreto)" FontWeight="Medium" Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding M365ClientSecret, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+
+                        <!-- Sezione modalità Admin: Discovery Utenti -->
+                        <StackPanel Visibility="{Binding M365IsAdminMode, Converter={StaticResource BoolToVis}}">
+                            <Button Content="{Binding M365DiscoverButtonText}" Background="#0284C7" Foreground="White" FontWeight="SemiBold" Height="34" BorderThickness="0" Margin="0,0,0,10" Command="{Binding DiscoverM365UsersCommand}" IsEnabled="{Binding M365IsNotDiscoveringUsers}" Cursor="Hand"/>
+
+                            <Border Background="#F9FAFB" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="8" Margin="0,0,0,10">
+                                <TextBlock Text="{Binding M365StatusText}" FontSize="12" Foreground="#1F2937" FontWeight="Medium"/>
+                            </Border>
+
+                            <StackPanel Visibility="{Binding M365HasDiscoveredUsers, Converter={StaticResource BoolToVis}}">
+                                <TextBlock Text="👤 Seleziona Casella Postale da Scaricare:" FontWeight="Bold" FontSize="12" Foreground="#111827" Margin="0,0,0,4"/>
+                                <ComboBox ItemsSource="{Binding M365Users}" SelectedItem="{Binding SelectedM365User}" DisplayMemberPath="DisplayText" Height="32" VerticalContentAlignment="Center" Margin="0,0,0,10"/>
+                            </StackPanel>
+                        </StackPanel>
+
+                        <!-- Sezione modalità Account Singolo -->
+                        <StackPanel Visibility="{Binding M365IsSingleAccountMode, Converter={StaticResource BoolToVis}}">
+                            <TextBlock Text="Indirizzo Email Casella da Scaricare (UPN)" FontWeight="Medium" Margin="0,0,0,4"/>
+                            <TextBox Text="{Binding M365UserEmail, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+                        </StackPanel>
+
+                        <CheckBox Content="Salva credenziali Microsoft 365 nei profili protetti" IsChecked="{Binding SaveProfile}" Margin="0,4,0,0" FontWeight="Medium"/>
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>

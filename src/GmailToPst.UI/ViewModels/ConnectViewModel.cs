@@ -146,6 +146,18 @@ public partial class ConnectViewModel : ObservableObject
             }
         }
 
+        // Check if there is an existing Microsoft 365 profile to pre-fill Tab 3
+        var m365Profile = profiles.FirstOrDefault(p => p.Type == AccountType.Microsoft365TenantAdmin || p.Type == AccountType.Microsoft365SingleAccount);
+        if (m365Profile != null)
+        {
+            M365TenantId = m365Profile.M365TenantId ?? "";
+            M365ClientId = m365Profile.M365ClientId ?? "";
+            M365ClientSecret = m365Profile.M365ClientSecret ?? "";
+            M365UserEmail = m365Profile.M365UserEmail ?? m365Profile.EmailAddress;
+            M365IsAdminMode = m365Profile.Type == AccountType.Microsoft365TenantAdmin;
+            M365IsSingleAccountMode = !M365IsAdminMode;
+        }
+
         if (SavedProfiles.Any())
         {
             SelectedProfile = SavedProfiles.First();
@@ -221,6 +233,74 @@ public partial class ConnectViewModel : ObservableObject
         await Task.CompletedTask;
     }
 
+    // Microsoft 365 Properties
+    [ObservableProperty]
+    private string _m365TenantId = "";
+
+    [ObservableProperty]
+    private string _m365ClientId = "";
+
+    [ObservableProperty]
+    private string _m365ClientSecret = "";
+
+    [ObservableProperty]
+    private string _m365UserEmail = "";
+
+    [ObservableProperty]
+    private bool _m365IsAdminMode = true;
+
+    [ObservableProperty]
+    private bool _m365IsSingleAccountMode = false;
+
+    partial void OnM365IsAdminModeChanged(bool value)
+    {
+        if (value && M365IsSingleAccountMode)
+        {
+            M365IsSingleAccountMode = false;
+        }
+    }
+
+    partial void OnM365IsSingleAccountModeChanged(bool value)
+    {
+        if (value && M365IsAdminMode)
+        {
+            M365IsAdminMode = false;
+        }
+    }
+
+    [ObservableProperty]
+    private bool _m365IsDiscoveringUsers = false;
+
+    [ObservableProperty]
+    private bool _m365IsNotDiscoveringUsers = true;
+
+    partial void OnM365IsDiscoveringUsersChanged(bool value)
+    {
+        M365IsNotDiscoveringUsers = !value;
+    }
+
+    [ObservableProperty]
+    private string _m365DiscoverButtonText = "🔍 Recupera Elenco Caselle del Dominio 365";
+
+    [ObservableProperty]
+    private bool _m365HasDiscoveredUsers = false;
+
+    [ObservableProperty]
+    private string _m365StatusText = "";
+
+    public ObservableCollection<WorkspaceUser> M365Users { get; } = new();
+
+    [ObservableProperty]
+    private WorkspaceUser? _selectedM365User;
+
+    [RelayCommand]
+    private async Task DiscoverM365UsersAsync()
+    {
+        System.Windows.MessageBox.Show("La scoperta e archiviazione automatica di tutte le caselle dell'intero tenant Microsoft 365 è una funzionalità avanzata di MailReaper PRO.\n\nNella versione Community puoi archiviare qualsiasi singolo account Microsoft 365 inserendo l'indirizzo email dell'utente.\n\nPer maggiori dettagli visita https://mailreaper.peer2peer.cloud", "MailReaper PRO Feature", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Information);
+        M365StatusText = "Funzionalità riservata a MailReaper PRO (https://mailreaper.peer2peer.cloud)";
+        await Task.CompletedTask;
+    }
+
     partial void OnSelectedProfileChanged(AccountConfig? value)
     {
         if (value == null) return;
@@ -257,6 +337,16 @@ public partial class ConnectViewModel : ObservableObject
                 HasDiscoveredUsers = true;
                 WorkspaceStatusText = $"✅ {WorkspaceUsers.Count} account salvati nel dominio";
             }
+        }
+        else if (value.Type == AccountType.Microsoft365TenantAdmin || value.Type == AccountType.Microsoft365SingleAccount)
+        {
+            SelectedAuthTabIndex = 3;
+            M365TenantId = value.M365TenantId ?? "";
+            M365ClientId = value.M365ClientId ?? "";
+            M365ClientSecret = value.M365ClientSecret ?? "";
+            M365UserEmail = value.M365UserEmail ?? value.EmailAddress;
+            M365IsAdminMode = value.Type == AccountType.Microsoft365TenantAdmin;
+            M365IsSingleAccountMode = !M365IsAdminMode;
         }
     }
 
@@ -307,7 +397,7 @@ public partial class ConnectViewModel : ObservableObject
             };
             provider = new GmailApiProvider();
         }
-        else // Google Workspace
+        else if (SelectedAuthTabIndex == 2) // Google Workspace
         {
             if (string.IsNullOrWhiteSpace(WorkspaceKeyFilePath) || !File.Exists(WorkspaceKeyFilePath))
             {
@@ -329,6 +419,33 @@ public partial class ConnectViewModel : ObservableObject
                 ServiceAccountKeyFilePath = WorkspaceKeyFilePath
             };
             provider = new GmailToPst.Providers.Workspace.GoogleWorkspaceEmailProvider();
+        }
+        else // Tab 3: Microsoft 365
+        {
+            if (string.IsNullOrWhiteSpace(M365TenantId) || string.IsNullOrWhiteSpace(M365ClientId) || string.IsNullOrWhiteSpace(M365ClientSecret))
+            {
+                System.Windows.MessageBox.Show("Inserisci Tenant ID, Client ID e Client Secret di Microsoft Entra ID / Microsoft 365 per l'analisi.", "Credenziali Mancanti", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            var targetUser = M365IsAdminMode ? (SelectedM365User?.Email ?? M365UserEmail.Trim()) : M365UserEmail.Trim();
+            if (string.IsNullOrWhiteSpace(targetUser))
+            {
+                System.Windows.MessageBox.Show("Inserisci o seleziona la casella email Microsoft 365 da analizzare.", "Casella Mancante", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            config = new AccountConfig
+            {
+                Type = M365IsAdminMode ? AccountType.Microsoft365TenantAdmin : AccountType.Microsoft365SingleAccount,
+                EmailAddress = targetUser,
+                M365TenantId = M365TenantId.Trim(),
+                M365ClientId = M365ClientId.Trim(),
+                M365ClientSecret = M365ClientSecret.Trim(),
+                M365UserEmail = targetUser,
+                M365IsAdminMode = M365IsAdminMode
+            };
+            provider = new GmailToPst.Providers.Microsoft365.Microsoft365EmailProvider();
         }
 
         IsAnalyzing = true;
@@ -415,7 +532,7 @@ public partial class ConnectViewModel : ObservableObject
             provider = new GmailApiProvider();
             email = string.IsNullOrWhiteSpace(OauthEmail) ? "GoogleAccount" : OauthEmail.Trim();
         }
-        else // Tab 2: Google Workspace Service Account
+        else if (SelectedAuthTabIndex == 2) // Tab 2: Google Workspace Service Account
         {
             if (string.IsNullOrWhiteSpace(WorkspaceKeyFilePath) || !File.Exists(WorkspaceKeyFilePath))
             {
@@ -439,6 +556,34 @@ public partial class ConnectViewModel : ObservableObject
             provider = new GmailToPst.Providers.Workspace.GoogleWorkspaceEmailProvider();
             email = targetUser;
         }
+        else // Tab 3: Microsoft 365 (Singolo & Dominio Admin)
+        {
+            if (string.IsNullOrWhiteSpace(M365TenantId) || string.IsNullOrWhiteSpace(M365ClientId) || string.IsNullOrWhiteSpace(M365ClientSecret))
+            {
+                System.Windows.MessageBox.Show("Inserisci Tenant ID, Client ID e Client Secret di Microsoft Entra ID / Microsoft 365.", "Credenziali Mancanti", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            var targetUser = M365IsAdminMode ? (SelectedM365User?.Email ?? M365UserEmail.Trim()) : M365UserEmail.Trim();
+            if (string.IsNullOrWhiteSpace(targetUser))
+            {
+                System.Windows.MessageBox.Show("Inserisci o seleziona la casella email Microsoft 365 di cui effettuare il backup.", "Casella Mancante", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                return;
+            }
+
+            config = new AccountConfig
+            {
+                Type = M365IsAdminMode ? AccountType.Microsoft365TenantAdmin : AccountType.Microsoft365SingleAccount,
+                EmailAddress = targetUser,
+                M365TenantId = M365TenantId.Trim(),
+                M365ClientId = M365ClientId.Trim(),
+                M365ClientSecret = M365ClientSecret.Trim(),
+                M365UserEmail = targetUser,
+                M365IsAdminMode = M365IsAdminMode
+            };
+            provider = new GmailToPst.Providers.Microsoft365.Microsoft365EmailProvider();
+            email = targetUser;
+        }
 
         if (SaveProfile)
         {
@@ -458,6 +603,25 @@ public partial class ConnectViewModel : ObservableObject
                         DiscoveredUsers = WorkspaceUsers.ToList()
                     };
                     await ProfileManager.SaveProfileAsync(adminProfile);
+                }
+                else if (SelectedAuthTabIndex == 3)
+                {
+                    await ProfileManager.SaveProfileAsync(config);
+
+                    if (M365IsAdminMode && M365Users.Any())
+                    {
+                        var adminProfile = new AccountConfig
+                        {
+                            Type = AccountType.Microsoft365TenantAdmin,
+                            EmailAddress = $"admin@{M365TenantId.Substring(0, Math.Min(8, M365TenantId.Length))}.tenant",
+                            M365TenantId = M365TenantId.Trim(),
+                            M365ClientId = M365ClientId.Trim(),
+                            M365ClientSecret = M365ClientSecret.Trim(),
+                            M365IsAdminMode = true,
+                            DiscoveredUsers = M365Users.ToList()
+                        };
+                        await ProfileManager.SaveProfileAsync(adminProfile);
+                    }
                 }
                 else
                 {
