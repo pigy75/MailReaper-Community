@@ -73,6 +73,23 @@ public partial class LicenseDialog : Window
         }
     }
 
+    private void BuyOnline_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "https://buy.stripe.com/aFa28kfKW2bBh2lcc4grS00",
+                UseShellExecute = true
+            };
+            System.Diagnostics.Process.Start(psi);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Impossibile aprire il browser:\n{ex.Message}\n\nVisita il link: https://buy.stripe.com/aFa28kfKW2bBh2lcc4grS00", "Acquisto Licenza PRO", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+    }
+
     private void Close_Click(object sender, RoutedEventArgs e)
     {
         Close();

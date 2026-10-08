@@ -54,10 +54,14 @@
         </Border>
 
         <!-- Pulsanti Footer -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button x:Name="BtnDeactivate" Content="Disattiva Licenza" Width="130" Height="34" Margin="0,0,8,0" Background="#FEE2E2" Foreground="#DC2626" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand" Click="Deactivate_Click" Visibility="Collapsed"/>
-            <Button Content="Chiudi" Width="90" Height="34" Margin="0,0,8,0" Background="#E5E7EB" Foreground="#374151" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand" Click="Close_Click"/>
-            <Button Content="Attiva Licenza PRO" Width="150" Height="34" Background="#2563EB" Foreground="White" BorderThickness="0" FontWeight="Bold" Cursor="Hand" Click="Activate_Click"/>
-        </StackPanel>
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Button HorizontalAlignment="Left" Content="🛒 Acquista PRO Online..." Height="34" Padding="12,0" Background="#F0FDF4" BorderBrush="#86EFAC" Foreground="#166534" BorderThickness="1" FontWeight="Bold" Cursor="Hand" Click="BuyOnline_Click" ToolTip="Acquista la licenza con carta di credito o Apple Pay tramite Stripe (49 € una tantum)"/>
+            
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnDeactivate" Content="Disattiva Licenza" Width="130" Height="34" Margin="0,0,8,0" Background="#FEE2E2" Foreground="#DC2626" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand" Click="Deactivate_Click" Visibility="Collapsed"/>
+                <Button Content="Chiudi" Width="90" Height="34" Margin="0,0,8,0" Background="#E5E7EB" Foreground="#374151" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand" Click="Close_Click"/>
+                <Button Content="Attiva Licenza PRO" Width="150" Height="34" Background="#2563EB" Foreground="White" BorderThickness="0" FontWeight="Bold" Cursor="Hand" Click="Activate_Click"/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>
