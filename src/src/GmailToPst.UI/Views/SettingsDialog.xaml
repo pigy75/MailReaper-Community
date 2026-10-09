@@ -1,0 +1,69 @@
+<Window x:Class="GmailToPst.UI.Views.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Impostazioni Cartelle e Percorsi" 
+        Height="390" Width="600"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F4F5F7">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock Text="⚙️ Impostazioni Cartelle e Salvataggio" FontSize="18" FontWeight="SemiBold" Foreground="#111827"/>
+            <TextBlock Text="Configura i percorsi in cui salvare i download, i database locali, le esportazioni PST e gli allegati." FontSize="12" Foreground="#6B7280" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Form Cartelle -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="6" Padding="15">
+            <StackPanel>
+                <!-- 1. Cartella Archivio Database/EML -->
+                <TextBlock Text="📂 Cartella Archivio Database Locale (Download):" FontWeight="SemiBold" FontSize="12" Foreground="#374151"/>
+                <Grid Margin="0,4,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="TxtArchivesPath" Padding="8,6" FontSize="12" VerticalContentAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Sfoglia..." Width="80" Height="30" Margin="8,0,0,0" Click="BrowseArchives_Click" Cursor="Hand"/>
+                </Grid>
+
+                <!-- 2. Cartella Esportazione PST / MSG -->
+                <TextBlock Text="💾 Cartella Predefinita per Esportazione PST / MSG:" FontWeight="SemiBold" FontSize="12" Foreground="#374151"/>
+                <Grid Margin="0,4,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="TxtExportPath" Padding="8,6" FontSize="12" VerticalContentAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Sfoglia..." Width="80" Height="30" Margin="8,0,0,0" Click="BrowseExport_Click" Cursor="Hand"/>
+                </Grid>
+
+                <!-- 3. Cartella Allegati & Immagini -->
+                <TextBlock Text="📎 Cartella Predefinita Estrazione Allegati &amp; Immagini:" FontWeight="SemiBold" FontSize="12" Foreground="#374151"/>
+                <Grid Margin="0,4,0,0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <TextBox x:Name="TxtAttachmentsPath" Padding="8,6" FontSize="12" VerticalContentAlignment="Center"/>
+                    <Button Grid.Column="1" Content="Sfoglia..." Width="80" Height="30" Margin="8,0,0,0" Click="BrowseAttachments_Click" Cursor="Hand"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+
+        <!-- Pulsanti Footer -->
+        <Grid Grid.Row="2" Margin="0,15,0,0">
+            <Button Content="Ripristina Predefiniti" HorizontalAlignment="Left" Width="140" Height="34" Background="#F3F4F6" BorderBrush="#D1D5DB" Click="ResetDefault_Click" Cursor="Hand"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button Content="Annulla" Width="90" Height="34" Margin="0,0,10,0" Background="#F3F4F6" BorderBrush="#D1D5DB" Click="Cancel_Click" Cursor="Hand"/>
+                <Button Content="Salva Impostazioni" Width="140" Height="34" Background="#2563EB" Foreground="White" FontWeight="SemiBold" BorderThickness="0" Click="Save_Click" Cursor="Hand"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>

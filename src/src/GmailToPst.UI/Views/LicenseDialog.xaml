@@ -1,0 +1,84 @@
+<Window x:Class="GmailToPst.UI.Views.LicenseDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Gestione Licenza - MailReaper" 
+        Height="460" Width="620"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        Background="#F3F4F6">
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="🔑 " FontSize="22" VerticalAlignment="Center"/>
+                <TextBlock Text="MailReaper - Licenza &amp; Edizione" FontSize="18" FontWeight="Bold" Foreground="#111827" VerticalAlignment="Center"/>
+            </StackPanel>
+            <TextBlock Text="Attiva MailReaper PRO per sbloccare l'esportazione illimitata (fino a 200+ GB senza limite 5 GB), backup tenant Microsoft 365 e Google Workspace." FontSize="12" Foreground="#6B7280" Margin="0,4,0,0"/>
+        </StackPanel>
+
+        <!-- Contenuto Stato Licenza & Form Attivazione -->
+        <Border Grid.Row="1" Background="White" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="18">
+            <StackPanel>
+                <!-- Stato Attuale Badge -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="EDIZIONE ATTIVA:" FontSize="11" FontWeight="Bold" Foreground="#6B7280"/>
+                        <TextBlock x:Name="TxtTierName" Text="Community Edition (Free)" FontSize="16" FontWeight="Bold" Foreground="#2563EB" Margin="0,2,0,0"/>
+                        <TextBlock x:Name="TxtLicensedTo" Text="Uso non commerciale / Test" FontSize="12" Foreground="#4B5563" Margin="0,2,0,0"/>
+                    </StackPanel>
+                    <Border Grid.Column="1" x:Name="BadgeTier" Background="#DBEAFE" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
+                        <TextBlock x:Name="TxtBadgeText" Text="COMMUNITY (Max 5 GB)" FontSize="12" FontWeight="Bold" Foreground="#1E40AF"/>
+                    </Border>
+                </Grid>
+
+                <!-- ID Hardware Macchina Corrente -->
+                <Grid Margin="0,0,0,14" Background="#F8FAFC" HorizontalAlignment="Stretch">
+                    <Border BorderBrush="#E2E8F0" BorderThickness="1" CornerRadius="6" Padding="10,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Text="ID HARDWARE MACCHINA (Codice Postazione):" FontSize="10.5" FontWeight="Bold" Foreground="#64748B"/>
+                                <TextBlock x:Name="TxtMachineId" Text="MR-HW-..." FontFamily="Consolas" FontSize="12" FontWeight="SemiBold" Foreground="#0F172A" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="📋 Copia ID" Padding="10,4" Background="#FFFFFF" BorderBrush="#CBD5E1" BorderThickness="1" Cursor="Hand" Click="CopyMachineId_Click" VerticalAlignment="Center" ToolTip="Copia l'ID hardware negli appunti per associarlo alla licenza"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+
+                <Separator Margin="0,0,0,12" Background="#E5E7EB"/>
+
+                <!-- Inserimento Chiave -->
+                <TextBlock Text="Inserisci Codice di Attivazione Licenza:" FontWeight="SemiBold" FontSize="12" Foreground="#374151" Margin="0,0,0,6"/>
+                <TextBox x:Name="TxtLicenseKey" Height="68" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" FontFamily="Consolas" FontSize="11" Padding="8" Background="#F9FAFB" BorderBrush="#D1D5DB" BorderThickness="1"/>
+
+                <TextBlock Text="Incolla la chiave generata per questa postazione (inizia con MR-)." FontSize="11" Foreground="#9CA3AF" Margin="0,4,0,0"/>
+
+                <TextBlock x:Name="TxtError" Text="" Foreground="#DC2626" FontSize="12" FontWeight="SemiBold" Margin="0,6,0,0" TextWrapping="Wrap" Visibility="Collapsed"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Pulsanti Footer -->
+        <Grid Grid.Row="2" Margin="0,16,0,0">
+            <Button HorizontalAlignment="Left" Content="🛒 Acquista PRO Online..." Height="34" Padding="12,0" Background="#F0FDF4" BorderBrush="#86EFAC" Foreground="#166534" BorderThickness="1" FontWeight="Bold" Cursor="Hand" Click="BuyOnline_Click" ToolTip="Acquista la licenza con carta di credito o Apple Pay tramite Stripe (49 € una tantum)"/>
+            
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <Button x:Name="BtnDeactivate" Content="Disattiva Licenza" Width="130" Height="34" Margin="0,0,8,0" Background="#FEE2E2" Foreground="#DC2626" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand" Click="Deactivate_Click" Visibility="Collapsed"/>
+                <Button Content="Chiudi" Width="90" Height="34" Margin="0,0,8,0" Background="#E5E7EB" Foreground="#374151" BorderThickness="0" FontWeight="SemiBold" Cursor="Hand" Click="Close_Click"/>
+                <Button Content="Attiva Licenza PRO" Width="150" Height="34" Background="#2563EB" Foreground="White" BorderThickness="0" FontWeight="Bold" Cursor="Hand" Click="Activate_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Window>
