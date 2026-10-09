@@ -25,25 +25,22 @@ dotnet publish $ProjectFile `
     -p:PublishSingleFile=true `
     -p:IncludeNativeLibrariesForSelfExtract=true `
     -p:EnableCompressionInSingleFile=true `
+    -p:DebugType=none `
+    -p:DebugSymbols=false `
     -o $OutputDir
 
 if (Test-Path "$OutputDir\GmailToPst.UI.exe") {
-    Copy-Item "$OutputDir\GmailToPst.UI.exe" "$OutputDir\MailReaper.exe" -Force
+    Move-Item "$OutputDir\GmailToPst.UI.exe" "$OutputDir\MailReaper.exe" -Force
 }
 
-$settingsContent = @'
-{
-  "ArchivesPath": "Archives",
-  "DefaultExportPath": "Export",
-  "DefaultAttachmentsPath": "Allegati_Gmail"
-}
-'@
-Set-Content -Path "$OutputDir\settings.json" -Value $settingsContent -Encoding UTF8
+# Rimuovi file di debug e documentazione non necessari
+Get-ChildItem -Path $OutputDir -Include *.pdb, *.xml -Recurse | Remove-Item -Force
+if (Test-Path "$OutputDir\settings.json") { Remove-Item "$OutputDir\settings.json" -Force }
 
 $ZipFile = "$PSScriptRoot\..\dist\MailReaper_Portable_v1.0.zip"
 Write-Host "`n[2/3] Creazione archivio ZIP compresso..." -ForegroundColor Yellow
 if (Test-Path $ZipFile) { Remove-Item $ZipFile -Force }
-Compress-Archive -Path "$OutputDir\*" -DestinationPath $ZipFile -CompressionLevel Optimal
+Compress-Archive -Path "$OutputDir\MailReaper.exe" -DestinationPath $ZipFile -CompressionLevel Optimal
 
 Write-Host "`n[3/3] Build completata con successo!" -ForegroundColor Green
 Write-Host "Eseguibile Portable: $OutputDir\MailReaper.exe" -ForegroundColor White
