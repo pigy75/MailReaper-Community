@@ -35,6 +35,15 @@ public static class LicenseManager
                 var key = File.ReadAllText(LicenseFilePath).Trim();
                 if (TryValidateKey(key, out var lic) && lic != null)
                 {
+                    // Se la licenza è vincolata a un hardware, verifica che corrisponda
+                    if (!string.IsNullOrWhiteSpace(lic.MachineId) &&
+                        !lic.MachineId.Equals(MachineFingerprint.GetMachineId(), StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Hardware non corrispondente
+                        _currentLicense = new LicenseInfo();
+                        return;
+                    }
+
                     _currentLicense = lic;
                     return;
                 }
@@ -66,6 +75,17 @@ public static class LicenseManager
         {
             errorMessage = $"La licenza è scaduta il {lic.ExpirationDate:dd/MM/yyyy}.";
             return false;
+        }
+
+        // Verifica vincolo Machine ID (se presente nella chiave)
+        if (!string.IsNullOrWhiteSpace(lic.MachineId))
+        {
+            var currentMachineId = MachineFingerprint.GetMachineId();
+            if (!lic.MachineId.Equals(currentMachineId, StringComparison.OrdinalIgnoreCase))
+            {
+                errorMessage = $"Questa chiave di licenza è valida ma è vincolata a un'altra postazione hardware:\nLicenza: {lic.MachineId}\nQuesto PC: {currentMachineId}";
+                return false;
+            }
         }
 
         try

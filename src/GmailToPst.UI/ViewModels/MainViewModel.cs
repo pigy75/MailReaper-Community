@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GmailToPst.Core.Interfaces;
+using GmailToPst.Core.Licensing;
 using GmailToPst.Core.Models;
 using GmailToPst.Storage.Database;
 using GmailToPst.Storage.Profiles;
@@ -77,8 +78,62 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private bool _showHtmlView = true;
 
+    // License & Edition Observable Properties
+    [ObservableProperty]
+    private string _editionTitle = "MailReaper [Community Edition] - Enterprise Mail & Workspace Extractor";
+
+    [ObservableProperty]
+    private string _licenseBadgeText = "COMMUNITY";
+
+    [ObservableProperty]
+    private string _licenseBadgeBackground = "#F1F5F9";
+
+    [ObservableProperty]
+    private string _licenseBadgeForeground = "#475569";
+
+    [ObservableProperty]
+    private string _licenseBadgeBorder = "#CBD5E1";
+
+    [ObservableProperty]
+    private string _licenseStatusDescription = "Edizione Community (Limite 5 GB)";
+
+    [ObservableProperty]
+    private bool _isProEdition = false;
+
     public MainViewModel()
     {
+        UpdateLicenseState();
+        LicenseManager.LicenseChanged += OnLicenseChanged;
+    }
+
+    private void OnLicenseChanged()
+    {
+        App.Current?.Dispatcher?.Invoke(UpdateLicenseState);
+    }
+
+    public void UpdateLicenseState()
+    {
+        var lic = LicenseManager.CurrentLicense;
+        IsProEdition = lic.IsProOrAbove;
+
+        if (IsProEdition)
+        {
+            LicenseBadgeText = "★ PRO";
+            LicenseBadgeBackground = "#EFF6FF";
+            LicenseBadgeForeground = "#1D4ED8";
+            LicenseBadgeBorder = "#93C5FD";
+            EditionTitle = $"MailReaper PRO - Licenza Attiva [{lic.LicensedTo}]";
+            LicenseStatusDescription = $"Licenza PRO Attiva ({lic.LicensedTo})";
+        }
+        else
+        {
+            LicenseBadgeText = "COMMUNITY";
+            LicenseBadgeBackground = "#F1F5F9";
+            LicenseBadgeForeground = "#475569";
+            LicenseBadgeBorder = "#CBD5E1";
+            EditionTitle = "MailReaper [Community Edition] - Enterprise Mail & Workspace Extractor";
+            LicenseStatusDescription = "Edizione Community (Limite 5 GB per archivio)";
+        }
     }
 
     public async Task InitializeWithStorageAsync(ILocalArchiveStorage storage, string accountEmail, int? year = null)
@@ -974,11 +1029,23 @@ public partial class MainViewModel : ObservableObject
     [RelayCommand]
     public void ShowAbout()
     {
+        var lic = LicenseManager.CurrentLicense;
+        var edition = lic.IsProOrAbove ? "PRO Edition" : "Community Edition";
+        var status = lic.IsProOrAbove
+            ? $"Licenza PRO Attiva - Registrata a: {lic.LicensedTo}\nScadenza: {(lic.ExpirationDate.HasValue ? lic.ExpirationDate.Value.ToString("dd/MM/yyyy") : "Perpetua (Lifetime)")}"
+            : "Edizione Gratuita Community (limite export 5 GB per archivio)";
+        var machineId = MachineFingerprint.GetMachineId();
+
         MessageBox.Show(
-            "Gmail & Google Workspace Backup Explorer\nVersione 1.2\n\n" +
-            "Archiviazione locale, filtraggio per anno ed esportazione in PST, MSG ed EML.\n" +
-            "Include estrattore massivo di allegati ed explorer 3-pane integrato.",
-            "Informazioni",
+            $"MailReaper - {edition}\n" +
+            $"Versione 1.2 (Build 2026)\n\n" +
+            $"Stato Licenza:\n{status}\n\n" +
+            $"ID Hardware di questa postazione:\n{machineId}\n\n" +
+            "Archiviazione ed estrazione email per Microsoft 365 (Entra ID), Google Workspace, Gmail, IMAP e POP3.\n" +
+            "Esportazione nativa in Outlook PST (fino a 200+ GB con auto-split a 40 GB), MSG ed EML.\n" +
+            "Include motore locale SQLite WAL su storage NVMe ed estrattore massivo allegati.\n\n" +
+            "Sito ufficiale: https://mailreaper.peer2peer.cloud",
+            $"Informazioni su MailReaper {edition}",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }

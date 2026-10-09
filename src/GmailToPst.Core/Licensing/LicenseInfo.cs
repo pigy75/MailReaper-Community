@@ -15,6 +15,7 @@ public class LicenseInfo
     public LicenseTier Tier { get; set; } = LicenseTier.Free;
     public string LicensedTo { get; set; } = "Community Edition";
     public string Email { get; set; } = string.Empty;
+    public string MachineId { get; set; } = string.Empty;
     public DateTime? ExpirationDate { get; set; }
     public DateTime IssuedDate { get; set; } = DateTime.UtcNow;
 

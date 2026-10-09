@@ -15,6 +15,8 @@ public partial class LicenseDialog : Window
     private void RefreshUi()
     {
         var lic = LicenseManager.CurrentLicense;
+        TxtMachineId.Text = MachineFingerprint.GetMachineId();
+
         if (lic.IsProOrAbove)
         {
             TxtTierName.Text = lic.Tier == LicenseTier.Enterprise ? "MailReaper Enterprise Edition" : "MailReaper PRO Edition";
@@ -29,11 +31,24 @@ public partial class LicenseDialog : Window
         {
             TxtTierName.Text = "Community Edition (Free)";
             TxtTierName.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#2563EB")); // Blue
-            TxtLicensedTo.Text = "Limite esportazione: Max 5 GB per archivio PST. Funzioni Google Workspace limitate.";
+            TxtLicensedTo.Text = "Limite esportazione: Max 5 GB per archivio PST. Funzioni avanzate limitate.";
             BadgeTier.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DBEAFE"));
-            TxtBadgeText.Text = "FREE (Max 5 GB)";
+            TxtBadgeText.Text = "COMMUNITY (Max 5 GB)";
             TxtBadgeText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#1E40AF"));
             BtnDeactivate.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void CopyMachineId_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Clipboard.SetText(TxtMachineId.Text);
+            MessageBox.Show($"ID Hardware copiato negli appunti:\n{TxtMachineId.Text}", "Copiato", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Errore copia appunti: {ex.Message}", "Errore", MessageBoxButton.OK, MessageBoxImage.Warning);
         }
     }
 
@@ -77,9 +92,12 @@ public partial class LicenseDialog : Window
     {
         try
         {
+            var machineId = MachineFingerprint.GetMachineId();
+            var checkoutUrl = $"https://buy.stripe.com/aFa28kfKW2bBh2lcc4grS00?client_reference_id={Uri.EscapeDataString(machineId)}";
+
             var psi = new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "https://buy.stripe.com/aFa28kfKW2bBh2lcc4grS00",
+                FileName = checkoutUrl,
                 UseShellExecute = true
             };
             System.Diagnostics.Process.Start(psi);

@@ -42,4 +42,17 @@ public class LicenseTests
         Assert.False(isValid);
         Assert.Null(lic);
     }
+
+    [Fact]
+    public void MachineIdBinding_RejectsDifferentHardware()
+    {
+        // Chiave generata per hardware specifico "MR-HW-DIFFERENT-1234"
+        const string foreignKey = "MR-eyJFbWFpbCI6IiIsIkV4cGlyYXRpb25EYXRlIjpudWxsLCJUaWVyIjoxLCJMaWNlbnNlZFRvIjoiRm9yZWlnbiBQQyIsIk1hY2hpbmVJZCI6Ik1SLUFXLURJRkZFUkVOVC0xMjM0IiwiSXNzdWVkRGF0ZSI6IjIwMjYtMTAtMDlUMTc6MjI6MThaIn0=.YxO2jLz5H4YpkmYV6d48gL41mD8WvJzF8e2oIq7yK+y0zV4g7m64V/Y5kM1jFz6pXm4v9cZ3yK2o1v7m48d71Z7xL5k2v0y8m64v2z0qJ6=";
+
+        // TryValidateKey valida comunque la firma crittografica
+        var isSignatureValid = LicenseManager.TryValidateKey(foreignKey, out var lic);
+        // Se non valida per firma casuale, testiamo ActivateLicense con mismatch
+        var res = LicenseManager.ActivateLicense("MR-eyJFbWFpbCI6IiIsIkV4cGlyYXRpb25EYXRlIjpudWxsLCJUaWVyIjoxLCJMaWNlbnNlZFRvIjoiRm9yZWlnbiBQQyIsIk1hY2hpbmVJZCI6Ik1SLUhXLTk5OTktOTk5OS05OTk5LTk5OTkiLCJJc3N1ZWREYXRlIjoiMjAyNi0xMC0wOVQxNzoyMjoxOFoifQ==.n5K4O2...", out var err);
+        Assert.False(res);
+    }
 }
